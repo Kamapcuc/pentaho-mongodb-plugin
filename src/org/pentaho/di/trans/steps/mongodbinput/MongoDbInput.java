@@ -23,7 +23,9 @@ import com.mongodb.ServerAddress;
 import com.mongodb.util.JSON;
 import org.pentaho.di.core.Const;
 import org.pentaho.di.core.exception.KettleException;
+import org.pentaho.di.core.exception.KettleStepException;
 import org.pentaho.di.core.row.RowMeta;
+import org.pentaho.di.core.row.RowMetaInterface;
 import org.pentaho.di.i18n.BaseMessages;
 import org.pentaho.di.trans.Trans;
 import org.pentaho.di.trans.TransMeta;
@@ -42,12 +44,26 @@ public class MongoDbInput extends BaseStep implements StepInterface {
     private MongoDbInputMeta meta;
     private MongoDbInputData data;
 
+    private Integer queryFieldIndex;
+
     private boolean m_serverDetermined;
     private Object[] m_currentInputRowDrivingQuery = null;
 
     public MongoDbInput(StepMeta stepMeta, StepDataInterface stepDataInterface,
                         int copyNr, TransMeta transMeta, Trans trans) {
         super(stepMeta, stepDataInterface, copyNr, transMeta, trans);
+    }
+
+    private static Integer getFieldIdx(RowMetaInterface rowMeta, String fieldName) {
+        if (fieldName == null) return null;
+
+        for (int i = 0; i < rowMeta.size(); i++) {
+            String name = rowMeta.getValueMeta(i).getName();
+            if (fieldName.equals(name)) {
+                return i;
+            }
+        }
+        return null;
     }
 
     @Override
@@ -65,7 +81,7 @@ public class MongoDbInput extends BaseStep implements StepInterface {
                 }
 
                 if (!first) {
-                    initQuery();
+                    initQuery(m_currentInputRowDrivingQuery);
                 }
             }
 
@@ -73,7 +89,7 @@ public class MongoDbInput extends BaseStep implements StepInterface {
                 data.outputRowMeta = new RowMeta();
                 meta.getFields(data.outputRowMeta, getStepname(), null, null, MongoDbInput.this);
 
-                initQuery();
+                initQuery(m_currentInputRowDrivingQuery);
                 first = false;
 
                 data.init();
@@ -133,7 +149,7 @@ public class MongoDbInput extends BaseStep implements StepInterface {
         }
     }
 
-    protected void initQuery() throws KettleException {
+    protected void initQuery(Object[] row) throws KettleException {
 
         // close any previous cursor
         if (data.cursor != null) {
@@ -146,7 +162,19 @@ public class MongoDbInput extends BaseStep implements StepInterface {
             m_serverDetermined = false;
         }
 
-        String query = environmentSubstitute(meta.getJsonQuery());
+        String queryField = meta.getQueryInField();
+        if (queryField != null && !"".equals(queryField)) {
+            queryFieldIndex = getFieldIdx(getInputRowMeta(), queryField);
+            if (queryFieldIndex == null)
+                throw new KettleStepException("Field " + queryField + " doesn't found in input");
+        }
+
+        String query;
+        if (queryFieldIndex == null)
+            query = environmentSubstitute(meta.getJsonQuery());
+        else
+            query = row[queryFieldIndex].toString();
+
         String fields = environmentSubstitute(meta.getFieldsName());
         if (Const.isEmpty(query) && Const.isEmpty(fields)) {
             if (meta.getQueryIsPipeline()) {

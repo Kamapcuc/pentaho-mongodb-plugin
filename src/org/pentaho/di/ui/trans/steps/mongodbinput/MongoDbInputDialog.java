@@ -31,6 +31,7 @@ import org.eclipse.swt.widgets.*;
 import org.pentaho.di.core.Const;
 import org.pentaho.di.core.Props;
 import org.pentaho.di.core.exception.KettleException;
+import org.pentaho.di.core.row.RowMetaInterface;
 import org.pentaho.di.core.row.ValueMeta;
 import org.pentaho.di.i18n.BaseMessages;
 import org.pentaho.di.trans.Trans;
@@ -42,10 +43,7 @@ import org.pentaho.di.trans.steps.mongodbinput.MongoDbInputData;
 import org.pentaho.di.trans.steps.mongodbinput.MongoDbInputMeta;
 import org.pentaho.di.ui.core.PropsUI;
 import org.pentaho.di.ui.core.dialog.*;
-import org.pentaho.di.ui.core.widget.ColumnInfo;
-import org.pentaho.di.ui.core.widget.StyledTextComp;
-import org.pentaho.di.ui.core.widget.TableView;
-import org.pentaho.di.ui.core.widget.TextVar;
+import org.pentaho.di.ui.core.widget.*;
 import org.pentaho.di.ui.trans.dialog.TransPreviewProgressDialog;
 import org.pentaho.di.ui.trans.step.BaseStepDialog;
 import org.pentaho.mongo.NamedReadPreference;
@@ -82,6 +80,8 @@ public class MongoDbInputDialog extends BaseStepDialog implements
     private TextVar wJsonField;
 
     private StyledTextComp wJsonQuery;
+    private LabelComboVar wQueryInField;
+
     private Label wlJsonQuery;
     private Button m_queryIsPipelineBut;
 
@@ -112,6 +112,30 @@ public class MongoDbInputDialog extends BaseStepDialog implements
     public MongoDbInputDialog(Shell parent, Object in, TransMeta tr, String sname) {
         super(parent, (BaseStepMeta) in, tr, sname);
         input = (MongoDbInputMeta) in;
+    }
+
+    private String[] getInputFieldNames() {
+        String[] fieldNames = null;
+        try {
+            RowMetaInterface r = transMeta.getPrevStepFields(stepname);
+            if (r != null) {
+                fieldNames = r.getFieldNames();
+            }
+        } catch (KettleException ke) {
+            new ErrorDialog(shell, BaseMessages.getString(PKG, "ElasticSearchBulkDialog.FailedToGetFields.DialogTitle"),
+                    BaseMessages.getString(PKG, "ElasticSearchBulkDialog.FailedToGetFields.DialogMessage"), ke);
+            return new String[0];
+        }
+        return fieldNames;
+    }
+
+    private void getPreviousFields(LabelComboVar combo) {
+        String value = combo.getText();
+        combo.removeAll();
+        combo.setItems(getInputFieldNames());
+        if (value != null) {
+            combo.setText(value);
+        }
     }
 
     @Override
@@ -812,6 +836,26 @@ public class MongoDbInputDialog extends BaseStepDialog implements
             }
         });
 
+        wQueryInField = new LabelComboVar(transMeta, wQueryComp, "Query field", "Field to read query from");
+        getPreviousFields(wQueryInField);
+        wQueryInField.getComboWidget().setEditable(true);
+        wQueryInField.addModifyListener(lsMod);
+        wQueryInField.addFocusListener(new FocusListener() {
+            public void focusLost(org.eclipse.swt.events.FocusEvent e) {
+            }
+
+            public void focusGained(org.eclipse.swt.events.FocusEvent e) {
+                getPreviousFields(wQueryInField);
+            }
+        });
+        props.setLook(wQueryInField);
+        fd = new FormData();
+        fd.bottom = new FormAttachment(lastControl, -margin);
+        fd.left = new FormAttachment(0, 0);
+        fd.right = new FormAttachment(100, 0);
+        wQueryInField.setLayoutData(fd);
+        lastControl = wQueryInField;
+
         // JSON Query input ...
         //
         wlJsonQuery = new Label(wQueryComp, SWT.NONE);
@@ -829,11 +873,12 @@ public class MongoDbInputDialog extends BaseStepDialog implements
         props.setLook(wJsonQuery, PropsUI.WIDGET_STYLE_FIXED);
         wJsonQuery.addModifyListener(lsMod);
 
-    /*
-     * wJsonQuery = new TextVar(transMeta, wQueryComp, SWT.SINGLE | SWT.LEFT |
-     * SWT.BORDER); props.setLook(wJsonQuery);
-     * wJsonQuery.addModifyListener(lsMod);
-     */
+        /*
+        * SWT.BORDER); props.setLook(wJsonQuery);
+        * wJsonQuery.addModifyListener(lsMod);
+        * wJsonQuery = new TextVar(transMeta, wQueryComp, SWT.SINGLE | SWT.LEFT |
+        */
+
         FormData fdJsonQuery = new FormData();
         fdJsonQuery.left = new FormAttachment(0, 0);
         fdJsonQuery.top = new FormAttachment(wlJsonQuery, margin);
@@ -1069,6 +1114,7 @@ public class MongoDbInputDialog extends BaseStepDialog implements
         wCollection.setText(Const.NVL(meta.getCollection(), "")); //$NON-NLS-1$
         wJsonField.setText(Const.NVL(meta.getJsonFieldName(), "")); //$NON-NLS-1$
         wJsonQuery.setText(Const.NVL(meta.getJsonQuery(), "")); //$NON-NLS-1$
+        wQueryInField.setText(Const.NVL(meta.getQueryInField(), "")); //$NON-NLS-1$
 
         wAuthUser.setText(Const.NVL(meta.getAuthenticationUser(), "")); // $NON-NLS-1$ //$NON-NLS-1$
         wAuthPass.setText(Const.NVL(meta.getAuthenticationPassword(), "")); // $NON-NLS-1$ //$NON-NLS-1$
@@ -1122,6 +1168,7 @@ public class MongoDbInputDialog extends BaseStepDialog implements
         meta.setCollection(wCollection.getText());
         meta.setJsonFieldName(wJsonField.getText());
         meta.setJsonQuery(wJsonQuery.getText());
+        meta.setQueryInField(wQueryInField.getText());
 
         meta.setAuthenticationUser(wAuthUser.getText());
         meta.setAuthenticationPassword(wAuthPass.getText());

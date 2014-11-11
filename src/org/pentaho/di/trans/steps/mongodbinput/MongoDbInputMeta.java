@@ -58,6 +58,8 @@ import java.util.Map;
 public class MongoDbInputMeta extends MongoDbMeta {
     protected static Class<?> PKG = MongoDbInputMeta.class; // for i18n purposes
 
+    static final String TAG_QUERY_FIELD = "queryInField";
+
     private String jsonFieldName;
     private String fields;
 
@@ -72,6 +74,16 @@ public class MongoDbInputMeta extends MongoDbMeta {
     private List<MongoField> m_fields;
 
     private boolean m_executeForEachIncomingRow = false;
+
+    private String queryInField = null;
+
+    public String getQueryInField() {
+        return queryInField;
+    }
+
+    public void setQueryInField(String queryInField) {
+        this.queryInField = queryInField;
+    }
 
     public void setMongoFields(List<MongoField> fields) {
         m_fields = fields;
@@ -109,6 +121,7 @@ public class MongoDbInputMeta extends MongoDbMeta {
             setCollection(XMLHandler.getTagValue(stepnode, "collection")); //$NON-NLS-1$
             jsonFieldName = XMLHandler.getTagValue(stepnode, "json_field_name"); //$NON-NLS-1$
             jsonQuery = XMLHandler.getTagValue(stepnode, "json_query"); //$NON-NLS-1$
+            setQueryInField(XMLHandler.getTagValue(stepnode, TAG_QUERY_FIELD));
             setAuthenticationUser(XMLHandler.getTagValue(stepnode, "auth_user")); //$NON-NLS-1$
             setAuthenticationPassword(Encr.decryptPasswordOptionallyEncrypted(XMLHandler.getTagValue(stepnode,
                     "auth_password"))); //$NON-NLS-1$
@@ -243,6 +256,7 @@ public class MongoDbInputMeta extends MongoDbMeta {
         retVal.append("    ").append(XMLHandler.addTagValue("collection", getCollection())); //$NON-NLS-1$ //$NON-NLS-2$
         retVal.append("    ").append(XMLHandler.addTagValue("json_field_name", jsonFieldName)); //$NON-NLS-1$ //$NON-NLS-2$
         retVal.append("    ").append(XMLHandler.addTagValue("json_query", jsonQuery)); //$NON-NLS-1$ //$NON-NLS-2$
+        retVal.append("    ").append(XMLHandler.addTagValue(TAG_QUERY_FIELD, getQueryInField())); //$NON-NLS-1$ //$NON-NLS-2$
         retVal.append("    ").append( //$NON-NLS-1$
                 XMLHandler.addTagValue("auth_user", getAuthenticationUser())); //$NON-NLS-1$
         retVal.append("    ").append( //$NON-NLS-1$
@@ -308,6 +322,7 @@ public class MongoDbInputMeta extends MongoDbMeta {
             setCollection(rep.getStepAttributeString(id_step, "collection")); //$NON-NLS-1$
             jsonFieldName = rep.getStepAttributeString(id_step, "json_field_name"); //$NON-NLS-1$
             jsonQuery = rep.getStepAttributeString(id_step, "json_query"); //$NON-NLS-1$
+            setQueryInField(rep.getStepAttributeString(id_step, TAG_QUERY_FIELD));
 
             setAuthenticationUser(rep.getStepAttributeString(id_step, "auth_user")); //$NON-NLS-1$
             setAuthenticationPassword(Encr.decryptPasswordOptionallyEncrypted(rep.getStepAttributeString(id_step,
@@ -367,6 +382,7 @@ public class MongoDbInputMeta extends MongoDbMeta {
             rep.saveStepAttribute(id_transformation, id_step, "collection", getCollection()); //$NON-NLS-1$
             rep.saveStepAttribute(id_transformation, id_step, "json_field_name", jsonFieldName); //$NON-NLS-1$
             rep.saveStepAttribute(id_transformation, id_step, "json_query", jsonQuery); //$NON-NLS-1$
+            rep.saveStepAttribute(id_transformation, id_step, TAG_QUERY_FIELD, getQueryInField());
 
             rep.saveStepAttribute(id_transformation, id_step, "auth_user", //$NON-NLS-1$
                     getAuthenticationUser());
